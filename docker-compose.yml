@@ -1,0 +1,194 @@
+version: "3.9"
+
+services:
+# ─────────────────────────────
+# Reverse proxy & dashboard
+# ─────────────────────────────
+  traefik:
+    image: traefik:v2.11
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      traefik.enable: "true"
+
+      # dashboard (unchanged)
+      traefik.http.routers.dashboard.rule: "Host(`traefik.localhost`)"
+      traefik.http.services.dashboard.loadbalancer.server.port: "8080"
+
+      # ─────────── CORS middleware (defined once) ───────────
+      traefik.http.middlewares.site-cors.headers.accesscontrolalloworiginlist: "http://localhost:3000,http://frontend.myapp.localhost:3000"
+      traefik.http.middlewares.site-cors.headers.accesscontrolallowmethods: "GET,POST,PUT,DELETE,OPTIONS"
+      traefik.http.middlewares.site-cors.headers.accesscontrolallowheaders: "Content-Type,Authorization"
+      traefik.http.middlewares.site-cors.headers.accesscontrolallowcredentials: "true"
+      traefik.http.middlewares.site-cors.headers.addvaryheader: "true"
+    networks:
+      - internal
+
+# ─────────────────────────────
+# Shared PostgreSQL
+# ─────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_DB:       ceview
+      POSTGRES_USER:     ceview_user
+      POSTGRES_PASSWORD: ceview_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ceview_user -d ceview"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+# ─────────────────────────────
+# Auth Redis
+# ─────────────────────────────
+  auth-redis:
+    image: redis:7-alpine
+    container_name: auth-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+# ─────────────────────────────
+# Auth service
+# ─────────────────────────────
+  auth-service:
+    build:
+      context: ./auth_service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-redis:
+        condition: service_healthy
+    environment:
+      REDIS_HOST:  auth-redis
+      REDIS_PORT:  6379
+      DB_URL:      jdbc:postgresql://postgres:5432/ceview
+      DB_USER:     ceview_user
+      DB_PASSWORD: ceview_pass
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.auth.rule: "Host(`auth.myapp.localhost`)"
+      traefik.http.routers.auth.middlewares: "site-cors@docker"
+      traefik.http.services.auth.loadbalancer.server.port: "8080"
+    networks:
+      - internal
+
+# ─────────────────────────────
+# Commenting service
+# ─────────────────────────────
+  commenting-service:
+    build:
+      context: ./commenting_service
+      dockerfile: Dockerfile
+    container_name: commenting-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL:      jdbc:postgresql://postgres:5432/ceview
+      DB_USER:     ceview_user
+      DB_PASSWORD: ceview_pass
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.comment.rule: "Host(`comment.myapp.localhost`)"
+      traefik.http.routers.comment.middlewares: "site-cors@docker"
+      traefik.http.services.comment.loadbalancer.server.port: "8080"
+    networks:
+      - internal
+
+# ─────────────────────────────
+# Restaurant Redis
+# ─────────────────────────────
+  restaurant-redis:
+    image: redis:7-alpine
+    container_name: restaurant-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+# ─────────────────────────────
+# Restaurant service
+# ─────────────────────────────
+  restaurant-service:
+    build:
+      context: ./restaurant_service
+      dockerfile: Dockerfile
+    container_name: restaurant-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      restaurant-redis:
+        condition: service_healthy
+    environment:
+      REDIS_HOST:    restaurant-redis
+      REDIS_PORT:    6379
+      DB_URL:        jdbc:postgresql://postgres:5432/ceview
+      DB_USER:       ceview_user
+      DB_PASSWORD:   ceview_pass
+      GOOGLE_API_KEY: "AIzaSyAKyld7vKKDJqqz8slivvpQMCIP75pfwVs"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.restaurant.rule: "Host(`restaurant.myapp.localhost`)"
+      traefik.http.routers.restaurant.middlewares: "site-cors@docker"
+      traefik.http.services.restaurant.loadbalancer.server.port: "8080"
+    networks:
+      - internal
+
+# ─────────────────────────────
+# Review service
+# ─────────────────────────────
+  review-service:
+    build:
+      context: ./review_service
+      dockerfile: Dockerfile
+    container_name: review-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL:      jdbc:postgresql://postgres:5432/ceview
+      DB_USER:     ceview_user
+      DB_PASSWORD: ceview_pass
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.review.rule: "Host(`review.myapp.localhost`)"
+      traefik.http.routers.review.middlewares: "site-cors@docker"
+      traefik.http.services.review.loadbalancer.server.port: "8080"
+    networks:
+      - internal
+
+# ─────────────────────────────
+# Shared network & volume
+# ─────────────────────────────
+networks:
+  internal:
+    name: internal
+    driver: bridge
+
+volumes:
+  pgdata:

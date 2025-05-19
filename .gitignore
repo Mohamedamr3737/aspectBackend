@@ -1,0 +1,95 @@
+### Build and Compiled Files ###
+/target/
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+/build/
+**/build/
+/out/
+**/out/
+/bin/
+**/bin/
+*.class
+.gradle
+/dist/
+
+### Package Files ###
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+### STS/Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+.idea_modules/
+out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+*.code-workspace
+
+### Local Configuration ###
+application-*.yml
+application-*.properties
+!application.yml
+!application.properties
+!application-test.yml
+!application-test.properties
+
+### Logs ###
+/logs/
+*.log
+log/
+
+### OS generated files ###
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+### Docker ###
+.env
+docker-compose.override.yml
+
+### Node (for frontend if using) ###
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+### Generated Documentation ###
+/docs/generated/
+
+### Database files ###
+*.db
+*.sqlite
+
+### Others ###
+HELP.md
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.project.env

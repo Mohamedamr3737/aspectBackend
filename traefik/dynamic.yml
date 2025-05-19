@@ -1,0 +1,19 @@
+http:
+  middlewares:
+    cors:
+      headers:
+        accessControlAllowOrigin: "*"
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+        accessControlAllowHeaders:
+          - "*"
+
+  routers:
+    traefik:
+      rule: "Host(`traefik.localhost`)"
+      service: api@internal
+      entryPoints:
+        - web
